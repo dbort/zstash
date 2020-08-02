@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 
-import backups
-from backups.config import ConfigDict, BackupConfig
+from backups import config as backup_config
+from backups import runner
 import io
 import logging
 import typing
@@ -36,22 +36,12 @@ ignore="""
 """
 '''
 
-def do_backup(config: BackupConfig, dry_run: bool=False):
-  logging.info(f'Preparing backup config [{config.name}]')
-  logging.info(config.options)
-  p = config.src_dir + '/line1'
-  logging.info(f'should ignore {p}? {config.should_ignore(p)}')
-  p = config.src_dir + '/line10'
-  logging.info(f'should ignore {p}? {config.should_ignore(p)}')
-  p = config.src_dir + '/lineXX'
-  logging.info(f'should ignore {p}? {config.should_ignore(p)}')
-
 
 def main(args: typing.Sequence) -> int:
   #xxx run paths through os.expanduser() for ~
-  configs = backups.config.read(io.StringIO(raw_config))
+  configs = backup_config.read(io.StringIO(raw_config))
   for config in configs:
-    do_backup(config)
+    runner.do_backup(config)
   return 0
 
 
