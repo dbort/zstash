@@ -22,6 +22,8 @@ log_path="${HOME}/var/log/backup-foundry.log"
 [backups]
 s3_bucket="backup-collar-different-hide"
 
+# Can also have an "ignore=..." here that will be inherited.
+
 [backups.worlds]
 s3_subpath="foundry/worlds"
 archive_prefix="foundry-worlds-"
@@ -40,6 +42,7 @@ src_dir="${FOUNDRY_ROOT}/Config"
 ignore="""
 """
 '''
+
 
 class ConfigError(Exception):
   def __init__(self, message: str):
@@ -94,6 +97,34 @@ def expand_vars(config: ConfigDict):
     os.environ.update(old_env)
 
 
+def get_backup_configs(config: ConfigDict) -> ConfigDict:
+  """Returns a mapping of [backups.<name>] names to configs.
+
+  Each entry will inherit from but override elements from the top-level
+  [backups] section.
+  """
+  # The root [backups] section, parent of specific backups.
+  root = config.get('backups')
+  if not root:
+    return []
+
+  # Split [backups] into backups and everything else.
+  backups = {}  # The [backups.*] sub-dicts.
+  base = {}  # `root` without the sub-dicts.
+  for k, v in root.items():
+    if isinstance(v, collections.abc.Mapping):
+      backups[k] = v
+    else:
+      base[k] = v
+
+  # Make backups inherit from (but override) base.
+  for k, v in backups.items():
+    n = base.copy()
+    n.update(v)
+    backups[k] = n
+  return backups
+
+
 def main(args: typing.Sequence) -> int:
   #xxx run paths through os.expanduser() for ~
   try:
@@ -102,7 +133,8 @@ def main(args: typing.Sequence) -> int:
   except ConfigError as e:
     logging.critical(f'Failed while reading config: {e}')
     return 1
-  print(config)
+  backups = get_backup_configs(config)
+  print(backups)
   return 0
 
 
