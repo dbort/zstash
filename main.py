@@ -28,6 +28,9 @@ ignore="""
 .pyre*
 __pycache__/
 """
+'''
+
+'''
 
 [backups.worlds]
 s3_subpath="foundry/worlds"
