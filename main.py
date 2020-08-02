@@ -1,14 +1,17 @@
 #!/usr/bin/env python3
 
 import collections.abc
+import expandvars
 from gitignore_parser import parse_gitignore
+import logging
 import os
 import sys
 import toml
-from typing import Sequence
+import typing
 
-#xxx os.envion["FOUNDRY_ROOT"] = "..."
-#xxx can use os.path.expandvars(str) to expand env vars
+# Alias for the config dictionary's type.
+ConfigDict = typing.MutableMapping[str, typing.Any]
+
 config = r'''
 [env]
 FOUNDRY_ROOT="${HOME}/.local/share/FoundryVTT"
@@ -38,44 +41,70 @@ ignore="""
 """
 '''
 
+class ConfigError(Exception):
+  def __init__(self, message: str):
+    self.message = message
 
-def read_config() -> dict:
-  return toml.loads(config)
+
+def read_config() -> ConfigDict:
+  try:
+    return toml.loads(config)
+  except toml.decoder.TomlDecodeError as e:
+    raise ConfigError(f'Error while parsing config file: {e}')
 
 
-def expand_vars(config: dict):
+def expand_vars(config: ConfigDict):
+  """Expands environment variables in the config.
+
+  If an 'env' section is present in the config, its keys/values extend the
+  environment during this expansion. All members of the 'env' section must
+  have string values.
+  """
   def expand_dict(d):
+    """Recursively expands environment vars in all string values in the dict."""
     for k, v in d.items():
       if isinstance(v, collections.abc.Mapping):
         expand_dict(v)
       elif isinstance(v, str):
-        d[k] = os.path.expandvars(v)
+        d[k] = expandvars.expandvars(v, nounset=True)
         
-
-  old_env = os.environ.copy()
+  old_env = os.environ.copy()  # Save so we can restore it later.
   try:
     # Define env vars specified in the config, whose values may themselves
     # contain ${vars}. Do them in order in case one uses a value defined before
     # it.
     if 'env' in config:
       for name, value in config.get('env', {}).items():
-        expanded = os.path.expandvars(value)
+        if not isinstance(value, str):
+          raise ConfigError(
+            f'[env] section contains entry "{name}" whose value ' +
+            f'is not a string: {repr(value)}')
+        expanded = expandvars.expandvars(value, nounset=True)
         config['env'][name] = expanded
         os.environ[name] = expanded
       # Don't re-expand these; don't need them anymore anyway.
       del config['env']
     # Expand strings in all other sections.
     expand_dict(config)
+  except expandvars.UnboundVariable as e:
+    raise ConfigError(f'Error while expanding variables: {e}')
   finally:
+    # Restore the original environment before returning or raising.
     os.environ.clear()
     os.environ.update(old_env)
 
 
-def main(args: Sequence):
-  config = read_config()
-  expand_vars(config)
+def main(args: typing.Sequence) -> int:
+  #xxx run paths through os.expanduser() for ~
+  try:
+    config = read_config()
+    expand_vars(config)
+  except ConfigError as e:
+    logging.critical(f'Failed while reading config: {e}')
+    return 1
   print(config)
+  return 0
 
 
 if __name__ == '__main__':
-  main(sys.argv)
+  sys.exit(main(sys.argv))
