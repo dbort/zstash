@@ -12,15 +12,16 @@ import typing
 # Alias for the config dictionary's type.
 ConfigDict = typing.MutableMapping[str, typing.Any]
 
-config = r'''
+# Allowed top-level [section] names.
+VALID_SECTION_NAMES = {'env', 'backups'}
+
+raw_config = r'''
 [env]
 FOUNDRY_ROOT="${HOME}/.local/share/FoundryVTT"
 
-[config]
-log_path="${HOME}/var/log/backup-foundry.log"
-
 [backups]
 s3_bucket="backup-collar-different-hide"
+log_path="${HOME}/var/log/backup-foundry.log"
 
 # Can also have an "ignore=..." here that will be inherited.
 
@@ -51,17 +52,23 @@ class ConfigError(Exception):
 
 def read_config() -> ConfigDict:
   try:
-    return toml.loads(config)
+    config = toml.loads(raw_config)
+    unknown_sections = set(config.keys()) - VALID_SECTION_NAMES
+    if unknown_sections:
+      raise ConfigError('Unknown section(s): {}'.format(
+        ', '.join([f'[{s}]' for s in unknown_sections])
+      ))
+    return config
   except toml.decoder.TomlDecodeError as e:
     raise ConfigError(f'Error while parsing config file: {e}')
 
 
 def expand_vars(config: ConfigDict):
-  """Expands environment variables in the config.
+  """Expands environment variables in config value strings.
 
   If an 'env' section is present in the config, its keys/values extend the
-  environment during this expansion. All members of the 'env' section must
-  have string values.
+  environment during this expansion. All members of the 'env' section must have
+  string values.
   """
   def expand_dict(d):
     """Recursively expands environment vars in all string values in the dict."""
@@ -106,7 +113,7 @@ def get_backup_configs(config: ConfigDict) -> ConfigDict:
   # The root [backups] section, parent of specific backups.
   root = config.get('backups')
   if not root:
-    return []
+    return {}
 
   # Split [backups] into backups and everything else.
   backups = {}  # The [backups.*] sub-dicts.
@@ -125,6 +132,11 @@ def get_backup_configs(config: ConfigDict) -> ConfigDict:
   return backups
 
 
+def do_backup(name: str, config: ConfigDict, dry_run: bool=False):
+  logging.info(f'Preparing backup config [{name}]')
+  logging.info(config)
+
+
 def main(args: typing.Sequence) -> int:
   #xxx run paths through os.expanduser() for ~
   try:
@@ -133,10 +145,13 @@ def main(args: typing.Sequence) -> int:
   except ConfigError as e:
     logging.critical(f'Failed while reading config: {e}')
     return 1
+
   backups = get_backup_configs(config)
-  print(backups)
+  for name, backup in backups.items():
+    do_backup(name, backup)
   return 0
 
 
 if __name__ == '__main__':
+  logging.basicConfig(level=logging.INFO)
   sys.exit(main(sys.argv))
