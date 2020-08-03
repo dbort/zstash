@@ -2,6 +2,7 @@
 
 from backups import config as backup_config
 from backups import runner
+import datetime
 import io
 import logging
 import typing
@@ -21,7 +22,7 @@ log_path="${HOME}/var/log/backup-foundry.log"
 s3_subpath="test"
 archive_prefix="test-"
 
-src_dir="${HOME}/src/zipspec"
+src_dir="${HOME}/src/simple-backups"
 ignore="""
 .git
 .mypy_cache
@@ -55,11 +56,14 @@ ignore="""
 def main(args: typing.Sequence) -> int:
   #xxx run paths through os.expanduser() for ~
   configs = backup_config.read(io.StringIO(raw_config))
+  now = datetime.datetime.now(datetime.timezone.utc)
   for config in configs:
-    runner.do_backup(config)
+    logging.info(f'Performing backup for [backups.{config.name}]')
+    runner.do_backup(config, now)
+    logging.info(f'Done backing up [backups.{config.name}]')
   return 0
 
 
 if __name__ == '__main__':
-  logging.basicConfig(level=logging.INFO)
+  logging.basicConfig(level=logging.DEBUG)
   sys.exit(main(sys.argv))

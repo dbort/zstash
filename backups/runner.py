@@ -1,10 +1,15 @@
 #!/usr/bin/env python3
 
 from backups.config import ConfigDict, BackupConfig
+import boto3
+from datetime import datetime
+from functools import lru_cache
 import hashlib
 import logging
+import tempfile
 import typing
 import os
+
 
 class BackupError(Exception):
   """Raised when an error occurs while performing a backup."""
@@ -69,18 +74,87 @@ def _hash_files(base_dir: str, files: typing.Sequence[str]) -> str:
   return out_hash.hexdigest()
 
 
-def do_backup(config: BackupConfig, dry_run: bool=False):
-  logging.info(f'Preparing backup config [backups.{config.name}]')
+@lru_cache(None)
+def _get_s3_client():
+  """Returns the S3 client singleton."""
+  return boto3.client('s3')
+
+
+def _list_existing_archives(config: BackupConfig) -> typing.Sequence[str]:
+  """Returns the paths of existing archives that match the config.
+
+  Args:
+    config: The backup config
+  Returns:
+    A sequence of paths, relative to the backup destination.
+  """
+  # Assemble the prefix to existing archives.
+  parts = [
+    config.options.get('s3_subpath'),
+    config.options.get('archive_prefix'),
+  ]
+
+  response = _get_s3_client().list_objects(
+      Bucket=config.options['s3_bucket'],
+      Prefix='/'.join([p for p in parts if p]),
+  )
+  if 'Contents' not in response:
+    return tuple()
+  try:
+    return tuple([c['Key'] for c in response['Contents']])
+  except KeyError as e:
+    logging.error(f'Failed to parse S3 response: {e}:\n{response}')
+
+
+#xxx provide the temp dir so the caller can manage it
+def _create_local_archive(
+    config: BackupConfig,
+    file_list: typing.Sequence[str]
+) -> str:
+  """Creates an archive of the specified files in a local temp dir.
+
+  Returns:
+    The path to the archive.
+  """
+
+
+def do_backup(config: BackupConfig, now: datetime, dry_run: bool=False):
+  # Get the list of files to archive.
+  logging.debug('Getting list of files to archive...')
   if not os.path.exists(config.src_dir):
     raise BackupError(config.name, f"src_dir {config.src_dir} does not exist")
   file_list = _build_file_list(config)
+  logging.debug('File list:\n  ' + '\n  '.join(file_list))
+
+  # Hash the files.
+  logging.debug('Hashing files...')
   tree_hash = _hash_files(config.src_dir, file_list)
-  logging.info(f'Hash: {tree_hash}')
+  logging.debug(f'Hash: {tree_hash}')
 
-  # https://boto3.amazonaws.com/v1/documentation/api/latest/guide/s3-uploading-files.html
+  # If there's already an archive with this hash, we're done.
+  logging.debug('Getting existing archives...')
+  existing_archives = _list_existing_archives(config)
+  logging.debug(
+      f'Found {len(existing_archives)} archives:\n  ' +
+      '\n  '.join(existing_archives)
+  )
+  for ea in existing_archives:
+    if tree_hash in ea:
+      logging.info(
+          f'Skipping backup: Found existing archive with matching hash: {ea}'
+      )
+      return
 
-  # - List existing backups (s3 util)
-  # - Quit if hash already exists
-  # - Assemble archive name
+  # Determine the name of the archive file.
+  date = f'{now.replace(microsecond=0).isoformat()}'
+  archive_base = (
+      f'{config.options.get("archive_prefix", "")}{date}-{tree_hash}.zip'
+  )
+  logging.debug(f'Archive base name: {archive_base}')
+
+  with tempfile.TemporaryDirectory() as tmpdir:
+    # Create a local archive of the files.
+    pass
+
   # - Create the archive (archive util)
   # - Upload to S3 (s3 util)
