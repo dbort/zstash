@@ -22,7 +22,7 @@ log_path="${HOME}/var/log/backup-foundry.log"
 s3_subpath="test"
 archive_prefix="test-"
 
-src_dir="${HOME}/src/simple-backups"
+src_dir="~/src/simple-backups"
 ignore="""
 .git
 .mypy_cache
@@ -54,7 +54,7 @@ ignore="""
 
 
 def main(args: typing.Sequence) -> int:
-  #xxx run paths through os.expanduser() for ~
+  #xxx listen to log_path (and run it through expanduser())
   configs = backup_config.read(io.StringIO(raw_config))
   now = datetime.datetime.now(datetime.timezone.utc)
   for config in configs:
@@ -65,5 +65,5 @@ def main(args: typing.Sequence) -> int:
 
 
 if __name__ == '__main__':
-  logging.getLogger().setLevel(logging.DEBUG)
+  logging.getLogger().setLevel(logging.INFO)
   sys.exit(main(sys.argv))

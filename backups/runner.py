@@ -149,7 +149,9 @@ def _create_local_archive(
       file=local_archive, mode='w', compression=zipfile.ZIP_DEFLATED
   ) as archive:
     src_dir = config.src_dir
+    logging.info(f'Archiving under {src_dir}...')
     for f in file_list:
+      logging.info(f'Archiving {f}...')
       archive.write(
           filename=os.path.join(config.src_dir, f),
           arcname=f
@@ -182,7 +184,9 @@ def do_backup(config: BackupConfig, now: datetime, dry_run: bool=False):
   for ea in existing_archives:
     if tree_hash in ea:
       logging.info(
-          f'Skipping backup: Found existing archive with matching hash: {ea}')
+          f'Skipping backup: Found existing archive with matching hash: ' +
+          f's3://{config.options["s3_bucket"]}/{ea}'
+      )
       return
 
   # Determine the name of the archive file.

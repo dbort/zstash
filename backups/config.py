@@ -41,7 +41,9 @@ class BackupConfig:
     self.options = options.copy()
     if 'src_dir' not in options:
       raise ConfigError(f'Section [backups.{name}] missing "src_dir"')
-    self.src_dir = options['src_dir']
+    # Expand '~' or '~user' into a full path now so no-one else needs to worry
+    # about it.
+    self.src_dir = os.path.expanduser(options['src_dir'])
     del self.options['src_dir']
     if 'ignore' in options:
       self.should_ignore = _parse_gitignore(options['ignore'], self.src_dir)
