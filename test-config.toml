@@ -1,0 +1,17 @@
+[env]
+FOUNDRY_ROOT="${HOME}/.local/share/FoundryVTT"
+
+[backups]
+s3_bucket="backup-collar-different-hide"
+
+[backups.test]
+s3_subpath="test"
+archive_prefix="test-"
+
+src_dir="~/src/simple-backups"
+ignore="""
+.git
+.mypy_cache
+.pyre*
+__pycache__/
+"""

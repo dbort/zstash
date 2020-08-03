@@ -108,7 +108,8 @@ def _list_existing_archives(config: BackupConfig) -> typing.Sequence[str]:
     raise BackupError(config.name, 'Error reading from S3')
 
 
-def _upload_archive(config: BackupConfig, local_archive: str):
+def _upload_archive(
+    config: BackupConfig, local_archive: str, dry_run: bool = False):
   """Uploads the local archive to the backup destination."""
   parts = [
       config.options.get("s3_subpath"),
@@ -121,11 +122,14 @@ def _upload_archive(config: BackupConfig, local_archive: str):
       f'Uploading\n  {local_archive}\nto'
       + f'\n  s3://{s3_bucket}/{object_name}...'
   )
-  _get_s3_client().upload_file(
-      Filename=local_archive,
-      Bucket=s3_bucket,
-      Key=object_name,
-  )
+  if dry_run:
+    logging.info("DRY RUN: Not uploading")
+  else:
+    _get_s3_client().upload_file(
+        Filename=local_archive,
+        Bucket=s3_bucket,
+        Key=object_name,
+    )
   logging.info('Upload complete.')
 
 
@@ -200,6 +204,6 @@ def do_backup(config: BackupConfig, now: datetime, dry_run: bool = False):
         config, archive_base, file_list, tmpdir)
 
     # Upload it.
-    _upload_archive(config, local_archive)
+    _upload_archive(config, local_archive, dry_run=dry_run)
 
   # Done!
