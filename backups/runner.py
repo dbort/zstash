@@ -9,6 +9,7 @@ import logging
 import tempfile
 import typing
 import os
+import zipfile
 
 
 class BackupError(Exception):
@@ -106,16 +107,34 @@ def _list_existing_archives(config: BackupConfig) -> typing.Sequence[str]:
     logging.error(f'Failed to parse S3 response: {e}:\n{response}')
 
 
-#xxx provide the temp dir so the caller can manage it
 def _create_local_archive(
     config: BackupConfig,
-    file_list: typing.Sequence[str]
+    archive_base: str,
+    file_list: typing.Sequence[str],
+    tmpdir: str,
 ) -> str:
   """Creates an archive of the specified files in a local temp dir.
 
   Returns:
     The path to the archive.
   """
+  local_archive = os.path.join(tmpdir, archive_base)
+
+  # TODO: Preserve owner/permissions. May be easiest to use the
+  # commandline tool; see https://serverfault.com/a/901142 for file lists.
+  logging.debug(f'Creating local archive {local_archive}...')
+  with zipfile.ZipFile(
+      file=local_archive, mode='w', compression=zipfile.ZIP_DEFLATED
+  ) as archive:
+    src_dir = config.src_dir
+    for f in file_list:
+      archive.write(
+          filename=os.path.join(config.src_dir, f),
+          arcname=f
+      )
+  logging.debug(f'Created local archive.')
+
+  return local_archive
 
 
 def do_backup(config: BackupConfig, now: datetime, dry_run: bool=False):
@@ -141,20 +160,17 @@ def do_backup(config: BackupConfig, now: datetime, dry_run: bool=False):
   for ea in existing_archives:
     if tree_hash in ea:
       logging.info(
-          f'Skipping backup: Found existing archive with matching hash: {ea}'
-      )
+          f'Skipping backup: Found existing archive with matching hash: {ea}')
       return
 
   # Determine the name of the archive file.
   date = f'{now.replace(microsecond=0).isoformat()}'
   archive_base = (
-      f'{config.options.get("archive_prefix", "")}{date}-{tree_hash}.zip'
-  )
-  logging.debug(f'Archive base name: {archive_base}')
+      f'{config.options.get("archive_prefix", "")}{date}-{tree_hash}.zip')
 
   with tempfile.TemporaryDirectory() as tmpdir:
     # Create a local archive of the files.
-    pass
+    local_archive = _create_local_archive(
+        config, archive_base, file_list, tmpdir)
 
-  # - Create the archive (archive util)
   # - Upload to S3 (s3 util)

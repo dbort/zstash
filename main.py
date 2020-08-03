@@ -65,5 +65,5 @@ def main(args: typing.Sequence) -> int:
 
 
 if __name__ == '__main__':
-  logging.basicConfig(level=logging.DEBUG)
+  logging.getLogger().setLevel(logging.DEBUG)
   sys.exit(main(sys.argv))
