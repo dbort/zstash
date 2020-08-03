@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 
-from backups.config import ConfigDict, BackupConfig
+from backups.config import BackupConfig
 import boto3
 from datetime import datetime
 from functools import lru_cache
@@ -118,10 +118,10 @@ def _upload_archive(config: BackupConfig, local_archive: str):
 
   s3_bucket = config.options['s3_bucket']
   logging.info(
-      f'Uploading\n  {local_archive}\nto' +
-      f'\n  s3://{s3_bucket}/{object_name}...'
+      f'Uploading\n  {local_archive}\nto'
+      + f'\n  s3://{s3_bucket}/{object_name}...'
   )
-  response = _get_s3_client().upload_file(
+  _get_s3_client().upload_file(
       Filename=local_archive,
       Bucket=s3_bucket,
       Key=object_name,
@@ -156,7 +156,7 @@ def _create_local_archive(
           filename=os.path.join(config.src_dir, f),
           arcname=f
       )
-  logging.debug(f'Created local archive.')
+  logging.debug('Created local archive.')
 
   return local_archive
 
@@ -178,14 +178,14 @@ def do_backup(config: BackupConfig, now: datetime, dry_run: bool = False):
   logging.debug('Getting existing archives...')
   existing_archives = _list_existing_archives(config)
   logging.debug(
-      f'Found {len(existing_archives)} archives:\n  ' +
-      '\n  '.join(existing_archives)
+      f'Found {len(existing_archives)} archives:\n  '
+      + '\n  '.join(existing_archives)
   )
   for ea in existing_archives:
     if tree_hash in ea:
       logging.info(
-          f'Skipping backup: Found existing archive with matching hash: ' +
-          f's3://{config.options["s3_bucket"]}/{ea}'
+          'Skipping backup: Found existing archive with matching hash: '
+          + f's3://{config.options["s3_bucket"]}/{ea}'
       )
       return
 

@@ -71,7 +71,7 @@ def _parse_gitignore(
   # The gitignore_parser module only accepts file paths. Mock out its call to
   # "open" so it will read our string no matter what path it opens.
   from unittest.mock import patch, mock_open
-  with patch('builtins.open', mock_open(read_data=contents)) as infile:
+  with patch('builtins.open', mock_open(read_data=contents)):
     return gitignore_parser.parse_gitignore(
         full_path='<mocked>',
         base_dir=base_dir,
@@ -116,8 +116,8 @@ def _expand_vars(config: ConfigDict):
       for name, value in config.get('env', {}).items():
         if not isinstance(value, str):
           raise ConfigError(
-              f'[env] section contains entry "{name}" whose value ' +
-              f'is not a string: {repr(value)}'
+              f'[env] section contains entry "{name}" whose value '
+              + f'is not a string: {repr(value)}'
           )
         expanded = expandvars.expandvars(value, nounset=True)
         config['env'][name] = expanded

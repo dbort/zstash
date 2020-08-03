@@ -3,4 +3,4 @@ https://pip.pypa.io/en/stable/reference/pip_install/#git
 
 pip3 install -e "git+file:///path/to/checkout"
 
-pycodestyle for pep8 conformance
+flake8 for pep8 conformance and other checks
