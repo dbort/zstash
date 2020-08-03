@@ -107,6 +107,28 @@ def _list_existing_archives(config: BackupConfig) -> typing.Sequence[str]:
     logging.error(f'Failed to parse S3 response: {e}:\n{response}')
 
 
+def _upload_archive(config: BackupConfig, local_archive: str):
+  """Uploads the local archive to the backup destination."""
+  parts = [
+      config.options.get("s3_subpath"),
+      os.path.basename(local_archive),
+  ]
+  object_name = '/'.join([p for p in parts if p])
+
+  s3_bucket = config.options['s3_bucket']
+  logging.info(
+      f'Uploading\n  {local_archive}\nto' +
+      f'\n  s3://{s3_bucket}/{object_name}...'
+  )
+  response = _get_s3_client().upload_file(
+      Filename=local_archive,
+      Bucket=s3_bucket,
+      Key=object_name,
+  )
+  logging.info('Upload complete.')
+
+
+
 def _create_local_archive(
     config: BackupConfig,
     archive_base: str,
@@ -173,4 +195,7 @@ def do_backup(config: BackupConfig, now: datetime, dry_run: bool=False):
     local_archive = _create_local_archive(
         config, archive_base, file_list, tmpdir)
 
-  # - Upload to S3 (s3 util)
+    # Upload it.
+    _upload_archive(config, local_archive)
+
+  # Done!
