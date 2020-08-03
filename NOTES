@@ -1,0 +1,4 @@
+Can install directly from a git repo:
+https://pip.pypa.io/en/stable/reference/pip_install/#git
+
+pip3 install -e "git+file:///path/to/checkout"
