@@ -105,6 +105,7 @@ def _list_existing_archives(config: BackupConfig) -> typing.Sequence[str]:
     return tuple([c['Key'] for c in response['Contents']])
   except KeyError as e:
     logging.error(f'Failed to parse S3 response: {e}:\n{response}')
+    raise BackupError(config.name, 'Error reading from S3')
 
 
 def _upload_archive(config: BackupConfig, local_archive: str):

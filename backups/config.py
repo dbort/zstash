@@ -2,6 +2,7 @@
 """Loads and validates backup config files."""
 
 import collections.abc
+import copy
 import expandvars
 import gitignore_parser
 import os
@@ -34,21 +35,22 @@ class BackupConfig:
   name: str
   src_dir: str
   options: ConfigDict
-  should_ignore: typing.Callable[[str], bool]
+
+  # https://github.com/python/mypy/issues/708
+  # should_ignore: typing.Callable[[str], bool]
 
   def __init__(self, name: str, options: ConfigDict):
     self.name = name
-    self.options = options.copy()
+    self.options = copy.deepcopy(dict(options))
     if 'src_dir' not in options:
       raise ConfigError(f'Section [backups.{name}] missing "src_dir"')
     # Expand '~' or '~user' into a full path now so no-one else needs to worry
     # about it.
     self.src_dir = os.path.expanduser(options['src_dir'])
     del self.options['src_dir']
-    if 'ignore' in options:
-      self.should_ignore = _parse_gitignore(options['ignore'], self.src_dir)
-    else:
-      self.should_ignore = lambda s: False
+
+    self.should_ignore = _parse_gitignore(
+        options.get('ignore', ''), self.src_dir)
     del self.options['ignore']
 
 
@@ -86,7 +88,7 @@ def _read_config(infile: typing.TextIO) -> ConfigDict:
         ', '.join([f'[{s}]' for s in unknown_sections])
       ))
     return config
-  except toml.decoder.TomlDecodeError as e:
+  except toml.decoder.TomlDecodeError as e:  # type: ignore
     raise ConfigError(f'Error while parsing config file: {e}')
 
 
@@ -140,7 +142,7 @@ def _get_backup_configs(config: ConfigDict) -> typing.Sequence[BackupConfig]:
   # The root [backups] section, parent of specific backups.
   root = config.get('backups')
   if not root:
-    return {}
+    return tuple()
 
   # Split [backups] into backups and everything else.
   backups = {}  # The [backups.*] sub-dicts.
@@ -156,7 +158,7 @@ def _get_backup_configs(config: ConfigDict) -> typing.Sequence[BackupConfig]:
     n = base.copy()
     n.update(v)
     backups[k] = n
-  return (BackupConfig(k, v) for k, v in backups.items())
+  return tuple(BackupConfig(k, v) for k, v in backups.items())  # type: ignore
 
 
 def read(config_file: typing.TextIO) -> typing.Sequence[BackupConfig]:
