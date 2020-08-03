@@ -57,7 +57,7 @@ class BackupConfig:
 def _parse_gitignore(
     contents: str,
     base_dir: str,
-  ) -> typing.Callable[[str], bool]:
+) -> typing.Callable[[str], bool]:
   """Parses gitignore lines and returns a matcher function.
 
   Args:
@@ -85,7 +85,7 @@ def _read_config(infile: typing.TextIO) -> ConfigDict:
     unknown_sections = set(config.keys()) - VALID_SECTION_NAMES
     if unknown_sections:
       raise ConfigError('Unknown section(s): {}'.format(
-        ', '.join([f'[{s}]' for s in unknown_sections])
+          ', '.join([f'[{s}]' for s in unknown_sections])
       ))
     return config
   except toml.decoder.TomlDecodeError as e:  # type: ignore
@@ -100,7 +100,7 @@ def _expand_vars(config: ConfigDict):
   string values.
   """
   def expand_dict(d):
-    """Recursively expands environment vars in all string values in the dict."""
+    """Recursively expands env vars in all string values in the dict."""
     for k, v in d.items():
       if isinstance(v, collections.abc.Mapping):
         expand_dict(v)
@@ -116,8 +116,9 @@ def _expand_vars(config: ConfigDict):
       for name, value in config.get('env', {}).items():
         if not isinstance(value, str):
           raise ConfigError(
-            f'[env] section contains entry "{name}" whose value ' +
-            f'is not a string: {repr(value)}')
+              f'[env] section contains entry "{name}" whose value ' +
+              f'is not a string: {repr(value)}'
+          )
         expanded = expandvars.expandvars(value, nounset=True)
         config['env'][name] = expanded
         os.environ[name] = expanded

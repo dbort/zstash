@@ -54,7 +54,7 @@ ignore="""
 
 
 def main(args: typing.Sequence) -> int:
-  #xxx listen to log_path (and run it through expanduser())
+  # xxx listen to log_path (and run it through expanduser())
   configs = backup_config.read(io.StringIO(raw_config))
   now = datetime.datetime.now(datetime.timezone.utc)
   for config in configs:

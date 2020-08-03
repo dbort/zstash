@@ -91,8 +91,8 @@ def _list_existing_archives(config: BackupConfig) -> typing.Sequence[str]:
   """
   # Assemble the prefix to existing archives.
   parts = [
-    config.options.get('s3_subpath'),
-    config.options.get('archive_prefix'),
+      config.options.get('s3_subpath'),
+      config.options.get('archive_prefix'),
   ]
 
   response = _get_s3_client().list_objects(
@@ -129,7 +129,6 @@ def _upload_archive(config: BackupConfig, local_archive: str):
   logging.info('Upload complete.')
 
 
-
 def _create_local_archive(
     config: BackupConfig,
     archive_base: str,
@@ -162,7 +161,7 @@ def _create_local_archive(
   return local_archive
 
 
-def do_backup(config: BackupConfig, now: datetime, dry_run: bool=False):
+def do_backup(config: BackupConfig, now: datetime, dry_run: bool = False):
   # Get the list of files to archive.
   logging.debug('Getting list of files to archive...')
   if not os.path.exists(config.src_dir):
