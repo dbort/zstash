@@ -109,7 +109,8 @@ def _list_existing_archives(config: BackupConfig) -> typing.Sequence[str]:
 
 
 def _upload_archive(
-    config: BackupConfig, local_archive: str, dry_run: bool = False):
+    config: BackupConfig, local_archive: str, dry_run: bool = False
+):
   """Uploads the local archive to the backup destination."""
   parts = [
       config.options.get("s3_subpath"),

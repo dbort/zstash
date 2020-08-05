@@ -45,13 +45,20 @@ def main(argv: typing.Sequence[str]) -> int:
     with open(config, 'r') as infile:
       configs.extend(backup_config.read(infile))
 
-  # Perform the backups.
+  # Perform the backups. Keep going even if one fails.
+  failures = 0
   for config in configs:
-    logging.info(f'Performing backup for [backups.{config.name}]')
-    now = datetime.datetime.now(datetime.timezone.utc)
-    runner.do_backup(config, now, dry_run=args.dry_run)
-    logging.info(f'Done backing up [backups.{config.name}]')
-  return 0
+    try:
+      logging.info(f'Performing backup for [backups.{config.name}]')
+      now = datetime.datetime.now(datetime.timezone.utc)
+      runner.do_backup(config, now, dry_run=args.dry_run)
+      logging.info(f'Done backing up [backups.{config.name}]')
+    except Exception as e:
+      logging.info(f'Failed while backing up [backups.{config.name}]: {e}')
+      failures += 1
+
+  # Make the process exit with an error if any of the backups failed.
+  return failures
 
 
 if __name__ == '__main__':
