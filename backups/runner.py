@@ -155,11 +155,12 @@ def _create_local_archive(
   ) as archive:
     src_dir = config.src_dir
     logging.info(f'Archiving under {src_dir}...')
-    for f in file_list:
-      logging.info(f'Archiving {f}...')
+    for rel_path in file_list:
+      logging.info(f'Archiving {rel_path}...')
+      abs_path = os.path.join(config.src_dir, rel_path)
       archive.write(
-          filename=os.path.join(config.src_dir, f),
-          arcname=f
+          filename=abs_path,
+          arcname=rel_path,
       )
   logging.debug('Created local archive.')
 
@@ -167,14 +168,13 @@ def _create_local_archive(
 
 
 def do_backup(config: BackupConfig, now: datetime, dry_run: bool = False):
-  # Get the list of files to archive.
   logging.debug('Getting list of files to archive...')
   if not os.path.exists(config.src_dir):
     raise BackupError(config.name, f"src_dir {config.src_dir} does not exist")
   file_list = _build_file_list(config)
-  logging.debug('File list:\n  ' + '\n  '.join(file_list))
+  for f in file_list:
+    logging.debug(f'+ {f}')
 
-  # Hash the files.
   logging.debug('Hashing files...')
   tree_hash = _hash_files(config.src_dir, file_list)
   logging.debug(f'Hash: {tree_hash}')

@@ -11,6 +11,7 @@ from backups import config as backup_config
 from backups import runner
 import datetime
 import logging
+import traceback
 import typing
 import sys
 
@@ -54,7 +55,8 @@ def main(argv: typing.Sequence[str]) -> int:
       runner.do_backup(config, now, dry_run=args.dry_run)
       logging.info(f'Done backing up [backups.{config.name}]')
     except Exception as e:
-      logging.info(f'Failed while backing up [backups.{config.name}]: {e}')
+      logging.error(traceback.format_exc())
+      logging.error(f'Failed while backing up [backups.{config.name}]: {e}')
       failures += 1
 
   # Make the process exit with an error if any of the backups failed.
