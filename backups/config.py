@@ -3,8 +3,8 @@
 
 import collections.abc
 import copy
-import expandvars
-import gitignore_parser
+import expandvars  # type: ignore  # No type stubs available
+import gitignore_parser  # type: ignore  # No type stubs available
 import os
 import toml
 import typing
@@ -135,7 +135,7 @@ def _expand_vars(config: ConfigDict):
 
 
 def _get_backup_configs(config: ConfigDict) -> typing.Sequence[BackupConfig]:
-  """Returns a mapping of [backups.<name>] names to configs.
+  """Returns BackupConfigs describing [backups.<name>] entries of the config.
 
   Each entry will inherit from but override elements from the top-level
   [backups] section.
