@@ -1,4 +1,8 @@
 #!/usr/bin/env python3
+# Copyright 2020 David Bort <git@dbort.com>
+# Use of this source code is governed by a MIT-style license that can be found
+# in the LICENSE file or at https://opensource.org/licenses/MIT
+
 """Support for executing a backup config."""
 
 from backups.config import BackupConfig

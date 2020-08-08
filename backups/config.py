@@ -1,4 +1,8 @@
 #!/usr/bin/env python3
+# Copyright 2020 David Bort <git@dbort.com>
+# Use of this source code is governed by a MIT-style license that can be found
+# in the LICENSE file or at https://opensource.org/licenses/MIT
+
 """Loads and validates backup config files."""
 
 import collections.abc
@@ -40,6 +44,12 @@ class BackupConfig:
   # should_ignore: typing.Callable[[str], bool]
 
   def __init__(self, name: str, options: ConfigDict):
+    for k, v in options.items():
+      if not isinstance(v, str):
+        raise ConfigError(
+            f'[backups.{name}] entry "{k}" has non-string value ({repr(v)})'
+        )
+
     self.name = name
     self.options = copy.deepcopy(dict(options))
     if 'src_dir' not in options:
@@ -49,9 +59,12 @@ class BackupConfig:
     self.src_dir = os.path.expanduser(options['src_dir'])
     del self.options['src_dir']
 
-    self.should_ignore = _parse_gitignore(
-        options.get('ignore', ''), self.src_dir)
-    del self.options['ignore']
+    if 'ignore' in options:
+      self.should_ignore = _parse_gitignore(
+          options['ignore'], self.src_dir)
+      del self.options['ignore']
+    else:
+      self.should_ignore = lambda _: False
 
 
 def _parse_gitignore(
@@ -173,4 +186,7 @@ def read(config_file: typing.TextIO) -> typing.Sequence[BackupConfig]:
   """
   config = _read_config(config_file)
   _expand_vars(config)
-  return _get_backup_configs(config)
+  configs = _get_backup_configs(config)
+  if not configs:
+    raise ConfigError('No [backups.<name>] sections present')
+  return configs
