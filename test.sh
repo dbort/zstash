@@ -4,6 +4,7 @@
 # in the LICENSE file or at https://opensource.org/licenses/MIT
 
 # Runs tests and lint checks.
+# Run 'pip3 install -r requirements-dev.txt' first.
 
 set -eu
 set -o pipefail

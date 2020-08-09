@@ -28,6 +28,9 @@ COMPRESSION_TYPE: str = 'bz2'
 # The extension of the generated archive file.
 ARCHIVE_EXTENSION: str = f'.{ARCHIVE_FORMAT}.{COMPRESSION_TYPE}'
 
+# The length of the hash prefix to use in the archive name.
+HASH_LENGTH: int = 16
+
 
 class BackupError(Exception):
   """Raised when an error occurs while performing a backup."""
@@ -45,6 +48,8 @@ def _build_file_list(config: BackupConfig) -> typing.Sequence[str]:
   """
   out_files = []
   for root, dirs, files in os.walk(config.src_dir):
+    # Can't remove elements from dirs while looping over it, so assemble a list
+    # of entries to remove in a second pass.
     ignored = [
         d for d in dirs if config.should_ignore(os.path.join(root, d))
     ]
@@ -153,7 +158,7 @@ def _upload_file(
         's3_bucket must be set to a non-empty string'
     )
   logging.info(
-      f'Uploading\n  {local_file}\nto'
+      f'Uploading {os.path.getsize(local_file)} bytes:\n  {local_file}\nto'
       + f'\n  s3://{s3_bucket}/{object_name}...'
   )
   if dry_run:
@@ -225,8 +230,9 @@ def do_backup(
     logging.debug(f'+ {f}')
 
   logging.debug('Hashing files...')
-  tree_hash = _hash_files(config.src_dir, file_list)
-  logging.debug(f'Hash: {tree_hash}')
+  full_tree_hash = _hash_files(config.src_dir, file_list)
+  tree_hash = full_tree_hash[:HASH_LENGTH]
+  logging.debug(f'Hash: {tree_hash} | {full_tree_hash[HASH_LENGTH:]}')
 
   # If there's already an archive with this hash, we're done.
   logging.debug('Getting existing archives...')
