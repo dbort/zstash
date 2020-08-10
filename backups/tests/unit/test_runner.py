@@ -484,6 +484,100 @@ class TestCreateLocalArchive(unittest.TestCase):
 class TestUploadFile(unittest.TestCase):
   """Tests for backups.runner._upload_file()."""
 
+  @mock.patch('backups.runner.boto3')
+  def test_successful_upload(self, mock_boto3):
+    """Tests a successful upload."""
+    inconfig = textwrap.dedent("""
+    [backups.test]
+    s3_bucket = "s3-bucket"
+    s3_subpath = "s3/sub/path"
+    src_dir = "<src-dir>"  # Required
+    """)
+    configs = backup_config.read(io.StringIO(inconfig))
+    self.assertEqual(len(configs), 1)
+    config = configs[0]
+
+    # A fake S3 client to upload to.
+    mock_s3client = mock.MagicMock()
+    mock_boto3.client.return_value = mock_s3client
+
+    # Reset the @lru_cache so that we can mock the returned value. Without
+    # this, only the first test to call _get_s3_client() would install a mock.
+    runner._get_s3_client.cache_clear()
+
+    # One of the log statements calls getsize(), which won't work on a fake
+    # path. Mock it out during the call.
+    with mock.patch('backups.runner.os.path.getsize', return_value=0) as _:
+      # Upload a file.
+      runner._upload_file(
+          config=config,
+          local_file='/some/path/archive.tar',
+      )
+
+    # Verify that the expected file was uploaded to the expected place.
+    mock_s3client.upload_file.assert_called_once_with(
+        Filename='/some/path/archive.tar',
+        Bucket='s3-bucket',
+        Key='s3/sub/path/archive.tar',  # s3_subpath + basename(local_file)
+    )
+
+  @mock.patch('backups.runner.boto3')
+  def test_successful_upload_without_s3_subpath(self, mock_boto3):
+    """Tests a successful upload without a subpath."""
+    inconfig = textwrap.dedent("""
+    [backups.test]
+    s3_bucket = "s3-bucket"
+    # No s3_subpath
+    src_dir = "<src-dir>"  # Required
+    """)
+    configs = backup_config.read(io.StringIO(inconfig))
+    self.assertEqual(len(configs), 1)
+    config = configs[0]
+
+    # A fake S3 client to upload to.
+    mock_s3client = mock.MagicMock()
+    mock_boto3.client.return_value = mock_s3client
+
+    # Reset the @lru_cache so that we can mock the returned value. Without
+    # this, only the first test to call _get_s3_client() would install a mock.
+    runner._get_s3_client.cache_clear()
+
+    # One of the log statements calls getsize(), which won't work on a fake
+    # path. Mock it out during the call.
+    with mock.patch('backups.runner.os.path.getsize', return_value=0) as _:
+      # Upload a file.
+      runner._upload_file(
+          config=config,
+          local_file='/some/path/archive.tar',
+      )
+
+    # Verify that the expected file was uploaded to the expected place.
+    mock_s3client.upload_file.assert_called_once_with(
+        Filename='/some/path/archive.tar',
+        Bucket='s3-bucket',
+        Key='archive.tar',  # basename(local_file); no s3_subpath
+    )
+
+  def test_upload_without_bucket_fails(self):
+    """Tests that uploading without an S3 bucket fails."""
+    inconfig = textwrap.dedent("""
+    [backups.test]
+    # No s3_bucket
+    s3_subpath = "s3/sub/path"
+    src_dir = "<src-dir>"  # Required
+    """)
+    configs = backup_config.read(io.StringIO(inconfig))
+    self.assertEqual(len(configs), 1)
+    config = configs[0]
+
+    self.assertRaisesRegex(
+        runner.BackupError,
+        's3_bucket must be set',
+        runner._upload_file,
+        config=config,
+        local_file='/some/path/archive.tar',
+    )
+
 
 class TestDoBackup(unittest.TestCase):
   """Tests for backups.runner.do_backup()."""

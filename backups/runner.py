@@ -175,7 +175,6 @@ def _create_local_archive(
     for rel_path in file_list:
       logging.info(f'Archiving {rel_path}...')
       abs_path = os.path.join(src_dir, rel_path)
-      print(f"Calling add of {archive}")
       archive.add(
           name=abs_path,
           arcname=rel_path,
