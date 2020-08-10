@@ -114,6 +114,9 @@ def _list_existing_archives(config: BackupConfig) -> typing.Sequence[str]:
   Returns:
     A sequence of paths, relative to the backup destination.
   """
+  if not config.options.get('s3_bucket'):
+    raise BackupError(config.name, 's3_bucket must be present and non-empty')
+
   # Assemble the prefix to existing archives.
   parts = [
       config.options.get('s3_subpath'),
@@ -125,12 +128,62 @@ def _list_existing_archives(config: BackupConfig) -> typing.Sequence[str]:
       Prefix='/'.join([p for p in parts if p]),
   )
   if 'Contents' not in response:
-    return tuple()
-  try:
-    return tuple([c['Key'] for c in response['Contents']])
-  except KeyError as e:
-    logging.error(f'Failed to parse S3 response: {e}:\n{response}')
-    raise BackupError(config.name, 'Error reading from S3')
+    raise BackupError(
+        config.name, f'Missing "Contents" in S3 response: {response}'
+    )
+  results = []
+  once = True
+  for entry in response['Contents']:
+    if 'Key' in entry:
+      results.append(entry['Key'])
+    else:
+      if once:
+        once = False
+        logging.error(f'Missing "Key" in S3 response: {response}')
+  return tuple(results)
+
+
+def _create_local_archive(
+    out_dir: str,
+    archive_base: str,
+    src_dir: str,
+    file_list: typing.Sequence[str],
+) -> str:
+  """Creates an archive of the specified files in a local temp dir.
+
+  Args:
+    out_dir: The directory in which to create the archive.
+    archive_base: The basename of the archive to create.
+    src_dir: The directory that elements of `file_list` are relative to.
+    file_list: The files to archive, relative to `src_dir`.
+  Returns:
+    The path to the archive.
+  """
+  # Note: We use tar because it preserves file permissions and other metadata.
+  # Python's zipfile module does not.
+  assert ARCHIVE_FORMAT == 'tar'
+
+  local_archive = os.path.join(out_dir, archive_base)
+  logging.debug(f'Creating local archive {local_archive}...')
+  with tarfile.open(
+      name=local_archive,
+      # 'x' is like 'w' but raises an exception if the output file already
+      # exists. Note that 'x:' is valid, and equivalent to 'x'.
+      mode=f'x:{COMPRESSION_TYPE}'
+  ) as archive:
+    logging.info(f'Archiving under {src_dir}...')
+    for rel_path in file_list:
+      logging.info(f'Archiving {rel_path}...')
+      abs_path = os.path.join(src_dir, rel_path)
+      print(f"Calling add of {archive}")
+      archive.add(
+          name=abs_path,
+          arcname=rel_path,
+          recursive=False,  # We already did the recursion.
+      )
+  logging.debug('Created local archive.')
+
+  return local_archive
 
 
 def _upload_file(
@@ -170,44 +223,6 @@ def _upload_file(
         Key=object_name,
     )
   logging.info('Upload complete.')
-
-
-def _create_local_archive(
-    config: BackupConfig,
-    archive_base: str,
-    file_list: typing.Sequence[str],
-    tmpdir: str,
-) -> str:
-  """Creates an archive of the specified files in a local temp dir.
-
-  Returns:
-    The path to the archive.
-  """
-  # Note: We use tar because it preserves file permissions and other metadata.
-  # Python's zipfile module does not.
-  assert ARCHIVE_FORMAT == 'tar'
-
-  local_archive = os.path.join(tmpdir, archive_base)
-  logging.debug(f'Creating local archive {local_archive}...')
-  with tarfile.open(
-      name=local_archive,
-      # 'x' is like 'w' but raises an exception if the output file already
-      # exists. Note that 'x:' is valid, and equivalent to 'x'.
-      mode=f'x:{COMPRESSION_TYPE}'
-  ) as archive:
-    src_dir = config.src_dir
-    logging.info(f'Archiving under {src_dir}...')
-    for rel_path in file_list:
-      logging.info(f'Archiving {rel_path}...')
-      abs_path = os.path.join(config.src_dir, rel_path)
-      archive.add(
-          name=abs_path,
-          arcname=rel_path,
-          recursive=False,  # We already did the recursion.
-      )
-  logging.debug('Created local archive.')
-
-  return local_archive
 
 
 def do_backup(
@@ -259,7 +274,11 @@ def do_backup(
   with tempfile.TemporaryDirectory() as tmpdir:
     # Create a local archive of the files.
     local_archive = _create_local_archive(
-        config, archive_base, file_list, tmpdir)
+        out_dir=tmpdir,
+        archive_base=archive_base,
+        src_dir=config.src_dir,
+        file_list=file_list,
+    )
 
     # Upload it.
     _upload_file(config, local_archive, dry_run=dry_run)

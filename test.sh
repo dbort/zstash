@@ -16,8 +16,8 @@ main() {
   flake8 . && echo 'OK'
   echo '[mypy]'
   mypy . && echo 'OK'
-  echo '[pyre]'
-  pyre check && echo 'OK'
+  # echo '[pyre]'
+  # pyre check && echo 'OK'
 }
 
 main "$@"
