@@ -7,6 +7,7 @@
 
 from backups import runner
 from backups import config as backup_config
+import datetime
 import io
 import os
 import textwrap
@@ -579,8 +580,109 @@ class TestUploadFile(unittest.TestCase):
     )
 
 
-class TestDoBackup(unittest.TestCase):
+class TestDoBackup(fake_filesystem_unittest.TestCase):
   """Tests for backups.runner.do_backup()."""
+
+  def setUp(self):
+    # Mock out all filesystem access.
+    self.setUpPyfakefs()
+
+  @mock.patch('backups.runner.boto3')
+  def run_do_backup(
+      self, mock_boto3, existing_archives: typing.Sequence[str],
+      should_create_archive: bool, dry_run: bool = False
+  ):
+    """Runs runner.do_backup() in a mock environment.
+
+    Args:
+      existing_archives: A list of paths, relative to an S3 bucket,
+          to report as being present.
+      should_create_archive: Whether do_backup() should create and upload
+          a new archive. This method will assert that the behavior matches
+          this parameter.
+      dry_run: The dry_run value to pass to do_backup().
+    """
+    # Create a BackupConfig.
+    inconfig = textwrap.dedent("""
+    [backups.test]
+    s3_bucket = "s3-bucket"
+    s3_subpath = "s3/sub/path"
+    src_dir = "/src_dir"
+    ignore = '''
+    ignored
+    '''
+    """)
+    configs = backup_config.read(io.StringIO(inconfig))
+    self.assertEqual(len(configs), 1)
+    config = configs[0]
+
+    # Populate the fake filesystem.
+    file_tree = (
+        '/src_dir/file1',
+        '/src_dir/ignored',
+        '/src_dir/dir1/file2',
+    )
+    create_tree(self.fs, file_tree)
+
+    # Reset the @lru_cache so that we can mock the returned value. Without
+    # this, only the first test to call _get_s3_client() would install a mock.
+    runner._get_s3_client.cache_clear()
+
+    # Make the S3 client return the specified list of expected archives.
+    s3_response = {
+        'Contents': [
+            {'Key': ea} for ea in existing_archives
+        ]
+    }
+    mock_s3client = mock.MagicMock()
+    mock_boto3.client.return_value = mock_s3client
+    mock_s3client.list_objects.return_value = s3_response
+
+    # Use a fixed "now".
+    now = datetime.datetime(
+        2020, 8, 11, 7, 38, 48, 333084, tzinfo=datetime.timezone.utc
+    )
+
+    # Do the backup.
+    runner.do_backup(config=config, now=now, dry_run=dry_run)
+
+    # Check whether an upload happened.
+    if should_create_archive:
+      # Can't use assert_called_once_with() because the full Filename will
+      # change based on the behavior of tempdir.
+      mock_s3client.upload_file.assert_called_once()
+      call_kwargs = mock_s3client.upload_file.call_args[1]
+      self.assertEqual(call_kwargs['Bucket'], 's3-bucket')
+      self.assertEqual(
+          call_kwargs['Key'],
+          's3/sub/path/2020-08-11T07:38:48+00:00-2eb2e89a9bf10dcf.tar.bz2'
+      )
+      self.assertTrue(
+          call_kwargs['Filename'].endswith(
+              '/2020-08-11T07:38:48+00:00-2eb2e89a9bf10dcf.tar.bz2'
+          )
+      )
+    else:
+      mock_s3client.upload_file.assert_not_called()
+
+  def test_do_backup_with_no_matching_hash(self):
+    """Tests that do_backup() uploads an archive when the hash is unique."""
+    self.run_do_backup(existing_archives=(), should_create_archive=True)
+
+  def test_do_backup_with_matching_hash(self):
+    """Tests that do_backup() uploads an archive when the hash is present."""
+    self.run_do_backup(
+        existing_archives=(
+            's3/sub/path/2020-08-11T07:38:48+00:00-2eb2e89a9bf10dcf.tar.bz2',
+        ),
+        should_create_archive=False
+    )
+
+  def test_do_backup_with_dry_run(self):
+    """Tests that dry_run prevents an upload."""
+    self.run_do_backup(
+        existing_archives=(), should_create_archive=False, dry_run=True
+    )
 
 
 if __name__ == '__main__':
