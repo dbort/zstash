@@ -11,8 +11,8 @@ Usage:
 """
 
 import argparse
-from backups import config as backup_config
-from backups import runner
+from zstash import config as backup_config
+from zstash import runner
 import datetime
 import logging
 import traceback

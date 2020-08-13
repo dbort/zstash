@@ -5,8 +5,8 @@
 
 """Tests for backups.config."""
 
-from backups import runner
-from backups import config as backup_config
+from zstash import runner
+from zstash import config as backup_config
 import datetime
 import io
 import os
@@ -35,7 +35,7 @@ def create_tree(fs, tree: typing.Sequence[str]) -> None:
 
 
 class TestBuildFileList(fake_filesystem_unittest.TestCase):
-  """Tests for backups.runner._build_file_list()."""
+  """Tests for zstash.runner._build_file_list()."""
 
   def setUp(self):
     # Mock out all filesystem access.
@@ -138,7 +138,7 @@ class TestBuildFileList(fake_filesystem_unittest.TestCase):
 
 
 class TestHashFiles(fake_filesystem_unittest.TestCase):
-  """Tests for backups.runner._hash_files()."""
+  """Tests for zstash.runner._hash_files()."""
 
   def setUp(self):
     # Mock out all filesystem access.
@@ -215,9 +215,9 @@ class TestHashFiles(fake_filesystem_unittest.TestCase):
 
 
 class TestListExistingArchives(unittest.TestCase):
-  """Tests for backups.runner._list_existing_archives()."""
+  """Tests for zstash.runner._list_existing_archives()."""
 
-  @mock.patch('backups.runner.boto3')
+  @mock.patch('zstash.runner.boto3')
   def run_list_existing_archives(
       self, mock_boto3, inconfig: str, s3_response: dict, expected_prefix: str
   ) -> typing.Sequence[str]:
@@ -432,9 +432,9 @@ class TestListExistingArchives(unittest.TestCase):
 
 
 class TestCreateLocalArchive(unittest.TestCase):
-  """Tests for backups.runner._create_local_archive()."""
+  """Tests for zstash.runner._create_local_archive()."""
 
-  @mock.patch('backups.runner.tarfile.open')
+  @mock.patch('zstash.runner.tarfile.open')
   def test_success(self, mock_tarfile_open):
     """Tests successful archive creation."""
     out_dir = '/outdir'
@@ -483,9 +483,9 @@ class TestCreateLocalArchive(unittest.TestCase):
 
 
 class TestUploadFile(unittest.TestCase):
-  """Tests for backups.runner._upload_file()."""
+  """Tests for zstash.runner._upload_file()."""
 
-  @mock.patch('backups.runner.boto3')
+  @mock.patch('zstash.runner.boto3')
   def test_successful_upload(self, mock_boto3):
     """Tests a successful upload."""
     inconfig = textwrap.dedent("""
@@ -508,7 +508,7 @@ class TestUploadFile(unittest.TestCase):
 
     # One of the log statements calls getsize(), which won't work on a fake
     # path. Mock it out during the call.
-    with mock.patch('backups.runner.os.path.getsize', return_value=0) as _:
+    with mock.patch('zstash.runner.os.path.getsize', return_value=0) as _:
       # Upload a file.
       runner._upload_file(
           config=config,
@@ -522,7 +522,7 @@ class TestUploadFile(unittest.TestCase):
         Key='s3/sub/path/archive.tar',  # s3_subpath + basename(local_file)
     )
 
-  @mock.patch('backups.runner.boto3')
+  @mock.patch('zstash.runner.boto3')
   def test_successful_upload_without_s3_subpath(self, mock_boto3):
     """Tests a successful upload without a subpath."""
     inconfig = textwrap.dedent("""
@@ -545,7 +545,7 @@ class TestUploadFile(unittest.TestCase):
 
     # One of the log statements calls getsize(), which won't work on a fake
     # path. Mock it out during the call.
-    with mock.patch('backups.runner.os.path.getsize', return_value=0) as _:
+    with mock.patch('zstash.runner.os.path.getsize', return_value=0) as _:
       # Upload a file.
       runner._upload_file(
           config=config,
@@ -581,13 +581,13 @@ class TestUploadFile(unittest.TestCase):
 
 
 class TestDoBackup(fake_filesystem_unittest.TestCase):
-  """Tests for backups.runner.do_backup()."""
+  """Tests for zstash.runner.do_backup()."""
 
   def setUp(self):
     # Mock out all filesystem access.
     self.setUpPyfakefs()
 
-  @mock.patch('backups.runner.boto3')
+  @mock.patch('zstash.runner.boto3')
   def run_do_backup(
       self, mock_boto3, existing_archives: typing.Sequence[str],
       should_create_archive: bool, dry_run: bool = False
@@ -683,6 +683,30 @@ class TestDoBackup(fake_filesystem_unittest.TestCase):
     self.run_do_backup(
         existing_archives=(), should_create_archive=False, dry_run=True
     )
+
+  def test_do_backup_with_missing_src_dir_fails(self):
+    """Tests that do_backup() fails if src_dir is not a directory."""
+    # Create a BackupConfig.
+    inconfig = textwrap.dedent("""
+    [backups.test]
+    s3_bucket = "s3-bucket"
+    s3_subpath = "s3/sub/path"
+    src_dir = "/DOES-NOT-EXIST"
+    ignore = '''
+    ignored
+    '''
+    """)
+    configs = backup_config.read(io.StringIO(inconfig))
+    self.assertEqual(len(configs), 1)
+    config = configs[0]
+
+    # Should raise an error because src_dir doesn't exist.
+    self.assertRaisesRegex(
+        runner.BackupError,
+        'src_dir.*does not exist',
+        runner.do_backup,
+        config=config,
+        now=None)
 
 
 if __name__ == '__main__':

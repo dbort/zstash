@@ -1,4 +1,6 @@
+-r requirements.txt
 flake8 >= 3.8.3
 mypy >= 0.782
 pyfakefs == 4.1.0
 pyre-check >= 0.0.52
+pytest >= 6.0.1

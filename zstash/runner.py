@@ -5,7 +5,7 @@
 
 """Support for executing a backup config."""
 
-from backups.config import BackupConfig
+from zstash.config import BackupConfig
 import boto3  # type: ignore  # No type stubs available
 from datetime import datetime
 from functools import lru_cache

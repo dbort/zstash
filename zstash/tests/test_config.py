@@ -5,7 +5,7 @@
 
 """Tests for backups.config."""
 
-from backups import config as backup_config
+from zstash import config as backup_config
 import io
 import os
 import textwrap

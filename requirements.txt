@@ -1,4 +1,4 @@
-boto3 == 1.14.33
-expandvars == 0.6.0
-gitignore-parser == 0.0.7
-toml == 0.10.1
+boto3 >= 1.14.33
+expandvars >= 0.6.0
+gitignore-parser >= 0.0.7
+toml >= 0.10.1

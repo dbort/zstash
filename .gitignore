@@ -1,3 +1,6 @@
 .pyre*
 __pycache__
 *.pyc
+*.egg-info
+htmlcov
+.coverage

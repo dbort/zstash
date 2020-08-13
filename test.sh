@@ -9,9 +9,14 @@
 set -eu
 set -o pipefail
 
+# TODO: Add a flag to run coverage.
+# pip3 install coverage
+# coverage run -m pytest --pyargs zstash
+# coverage html
+
 main() {
   echo '[test]'
-  python3 -m unittest discover --verbose
+  pytest --pyargs zstash
   echo '[flake8]'
   flake8 . && echo 'OK'
   echo '[mypy]'
