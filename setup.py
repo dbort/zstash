@@ -35,6 +35,6 @@ setup(
     include_package_data=True,
     entry_points = {
         'console_scripts': ['zstash=zstash.command_line:main'],
-    }
+    },
     zip_safe=False,
 )

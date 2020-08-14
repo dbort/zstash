@@ -8,10 +8,11 @@ s3_bucket="backup-collar-different-hide"
 s3_subpath="test"
 archive_prefix="test-"
 
-src_dir="~/src/simple-backups"
+src_dir="~/src/zstash"
 ignore="""
 .git
 .mypy_cache
 .pyre*
 __pycache__/
+htmlcov/
 """

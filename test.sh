@@ -1,5 +1,5 @@
 #!/bin/bash
-# Copyright 2020 David Bort <git@dbort.com>
+# Copyright 2020 Dave Bort <git@dbort.com>
 # Use of this source code is governed by a MIT-style license that can be found
 # in the LICENSE file or at https://opensource.org/licenses/MIT
 

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# Copyright 2020 David Bort <git@dbort.com>
+# Copyright 2020 Dave Bort <git@dbort.com>
 # Use of this source code is governed by a MIT-style license that can be found
 # in the LICENSE file or at https://opensource.org/licenses/MIT
 
@@ -37,7 +37,7 @@ def _parse_args(argv: typing.Sequence[str]) -> argparse.Namespace:
   return parser.parse_args(argv[1:])
 
 
-def main(argv: typing.Sequence[str]) -> int:
+def _execute(argv: typing.Sequence[str]) -> int:
   # Parse args.
   args = _parse_args(argv)
   if args.verbose:
@@ -67,10 +67,14 @@ def main(argv: typing.Sequence[str]) -> int:
   return failures
 
 
-if __name__ == '__main__':
+def main():
   logging.basicConfig(
       level=logging.INFO,
       format='%(asctime)s %(levelname).1s %(name)s] %(message)s',
       datefmt='%y%m%d %H:%M:%S%Z',
   )
-  sys.exit(main(sys.argv))
+  sys.exit(_execute(sys.argv))
+
+
+if __name__ == '__main__':
+  main()
