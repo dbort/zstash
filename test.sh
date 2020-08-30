@@ -11,7 +11,8 @@ set -o pipefail
 
 # TODO: Add a flag to run coverage.
 # pip3 install coverage
-# coverage run -m pytest --pyargs zstash
+# coverage run --source=zstash -m pytest --pyargs zstash
+# coverage report
 # coverage html
 
 main() {

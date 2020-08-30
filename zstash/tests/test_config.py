@@ -3,7 +3,7 @@
 # Use of this source code is governed by a MIT-style license that can be found
 # in the LICENSE file or at https://opensource.org/licenses/MIT
 
-"""Tests for backups.config."""
+"""Tests for zstash.config."""
 
 from zstash import config as backup_config
 import io

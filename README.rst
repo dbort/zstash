@@ -98,5 +98,6 @@ cron
 TODO:
 
 * A good logging story. Would be nice if it rotated.
+  https://stackoverflow.com/a/40088591
 * Reminder that the env is usually empty when running from cron, so it's
   better to avoid relying on things like $HOME.
